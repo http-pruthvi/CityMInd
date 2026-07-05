@@ -3,6 +3,20 @@ import { generateGroundedResponse } from '../../rag';
 import { DOMAIN_CONFIGS } from '@/lib/mock/data';
 import { prisma } from '@/lib/db/prisma';
 
+// Minimal shape of a Prisma Alert row needed in this file
+interface AlertRow {
+  id: string;
+  title: string;
+  description: string;
+  severity: string;
+  status: string;
+  domain: string;
+  latitude: number | null;
+  longitude: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface DomainAgent {
   handleQuery(query: string, context?: unknown): Promise<{
     answer: string;
@@ -27,11 +41,11 @@ async function getLiveDomainContext(domain: DomainId): Promise<string> {
       where: { domain, status: { not: 'resolved' } },
       orderBy: { createdAt: 'desc' },
       take: 10,
-    }),
+    }) as Promise<AlertRow[]>,
     prisma.alert.findMany({
       where: { domain, latitude: { not: null }, longitude: { not: null } },
       take: 5,
-    }),
+    }) as Promise<AlertRow[]>,
   ]);
 
   const latestMetrics = new Map<string, (typeof metrics)[0]>();
@@ -77,11 +91,11 @@ function createDomainAgent(domain: DomainId): DomainAgent {
         prisma.alert.findMany({
           where: { domain, status: { not: 'resolved' } },
           take: 3,
-        }),
+        }) as Promise<AlertRow[]>,
         prisma.alert.findMany({
           where: { domain, latitude: { not: null }, longitude: { not: null } },
           take: 10,
-        }),
+        }) as Promise<AlertRow[]>,
       ]);
 
       const sources = [
