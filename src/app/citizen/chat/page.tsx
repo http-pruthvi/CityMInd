@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Send, Image, Mic, ShieldAlert, Sparkles, RefreshCw, ChevronRight, 
@@ -30,7 +31,11 @@ const SUGGESTED_PROMPTS = [
   { text: 'Check safety alerts in Sector 3', icon: ShieldAlert },
 ];
 
-export default function CitizenChat() {
+function CitizenChatContent() {
+  const searchParams = useSearchParams();
+  const initialQuery = searchParams.get('q');
+  const initialTriggered = useRef(false);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -112,6 +117,13 @@ export default function CitizenChat() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (initialQuery && !initialTriggered.current) {
+      initialTriggered.current = true;
+      handleSend(initialQuery);
+    }
+  }, [initialQuery]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -309,5 +321,13 @@ export default function CitizenChat() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CitizenChat() {
+  return (
+    <Suspense fallback={<div className="p-6 text-center text-xs text-gray-500">Loading chat interface...</div>}>
+      <CitizenChatContent />
+    </Suspense>
   );
 }

@@ -38,3 +38,6 @@ prisma/dev.db-journal
 !/uploads/.gitkeep
 
 /src/generated/prisma
+
+# local transformer cache
+.cache/

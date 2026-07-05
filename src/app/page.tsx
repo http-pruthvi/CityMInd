@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, useInView } from 'framer-motion';
 import {
   Search,
@@ -105,7 +106,17 @@ const itemVariants = {
 };
 
 export default function LandingPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/citizen/chat?q=${encodeURIComponent(searchQuery.trim())}`);
+    } else {
+      router.push('/citizen/chat');
+    }
+  };
   const domainRef = useRef<HTMLDivElement>(null);
   const domainsInView = useInView(domainRef, { once: true, margin: '-100px' });
 
@@ -241,7 +252,7 @@ export default function LandingPage() {
               position: 'relative',
             }}
           >
-            <div className="card-glass" style={{
+            <form onSubmit={handleSearchSubmit} className="card-glass" style={{
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem',
@@ -266,16 +277,16 @@ export default function LandingPage() {
                   fontFamily: 'inherit',
                 }}
               />
-              <button className="btn btn-ghost btn-icon" style={{ flexShrink: 0 }}>
+              <button type="button" className="btn btn-ghost btn-icon" style={{ flexShrink: 0 }}>
                 <Mic size={18} />
               </button>
-              <Link href="/citizen/chat" className="btn btn-primary" style={{
+              <button type="submit" className="btn btn-primary" style={{
                 borderRadius: 'var(--radius-md)',
                 padding: '0.6rem 1rem',
               }}>
                 <Send size={16} />
-              </Link>
-            </div>
+              </button>
+            </form>
           </motion.div>
         </motion.div>
 
