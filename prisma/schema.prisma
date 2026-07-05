@@ -1,0 +1,321 @@
+// ============================================================
+//  CityMind — Prisma Schema
+//  AI-Powered Decision Intelligence Platform for Smart Cities
+//  Provider: SQLite (file-based, zero-config)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────────────────────
+//  User
+// ──────────────────────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String                        // hashed
+  role        String   @default("citizen")  // citizen | operator | admin
+  avatar      String?
+  department  String?
+  phone       String?
+  isActive    Boolean  @default(true)
+
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  alerts            Alert[]          @relation("AssignedAlerts")
+  triggeredWorkflows Workflow[]      @relation("TriggeredWorkflows")
+  approvedWorkflows  Workflow[]      @relation("ApprovedWorkflows")
+  citizenReports    CitizenReport[]  @relation("ReportedBy")
+  assignedReports   CitizenReport[]  @relation("AssignedTo")
+  chatSessions      ChatSession[]
+  notifications     Notification[]
+  activityLogs      ActivityLog[]
+
+  @@index([email])
+  @@index([role])
+}
+
+// ──────────────────────────────────────────────────────────────
+//  Alert
+// ──────────────────────────────────────────────────────────────
+
+model Alert {
+  id            String   @id @default(uuid())
+  title         String
+  description   String
+  severity      String   @default("medium")   // critical | high | medium | low | info
+  status        String   @default("active")   // active | acknowledged | resolved | escalated
+  domain        String                        // DomainId
+  source        String?
+
+  // Location (nullable)
+  latitude      Float?
+  longitude     Float?
+  locationName  String?
+
+  acknowledgedAt DateTime?
+  resolvedAt     DateTime?
+
+  // Relations
+  assigneeId    String?
+  assignee      User?    @relation("AssignedAlerts", fields: [assigneeId], references: [id])
+
+  tags          String?   // JSON-encoded string array
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([severity])
+  @@index([status])
+  @@index([domain])
+  @@index([assigneeId])
+  @@index([createdAt])
+}
+
+// ──────────────────────────────────────────────────────────────
+//  Workflow
+// ──────────────────────────────────────────────────────────────
+
+model Workflow {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  domain      String                          // DomainId
+  status      String   @default("pending")    // pending | approved | rejected | executing | completed | failed
+  priority    String   @default("medium")     // AlertSeverity
+
+  triggeredById   String
+  triggeredBy     User     @relation("TriggeredWorkflows", fields: [triggeredById], references: [id])
+
+  approverId      String?
+  approver        User?    @relation("ApprovedWorkflows", fields: [approverId], references: [id])
+
+  notes       String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  // Relations
+  actions     WorkflowAction[]
+
+  @@index([status])
+  @@index([domain])
+  @@index([triggeredById])
+  @@index([approverId])
+  @@index([createdAt])
+}
+
+// ──────────────────────────────────────────────────────────────
+//  WorkflowAction
+// ──────────────────────────────────────────────────────────────
+
+model WorkflowAction {
+  id          String   @id @default(uuid())
+  type        String
+  label       String
+  params      String   @default("{}")   // JSON-encoded
+  status      String   @default("pending")  // pending | running | completed | failed | skipped
+  result      String?                    // JSON-encoded
+  error       String?
+  order       Int      @default(0)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  // Relations
+  workflowId  String
+  workflow    Workflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@index([status])
+}
+
+// ──────────────────────────────────────────────────────────────
+//  CitizenReport
+// ──────────────────────────────────────────────────────────────
+
+model CitizenReport {
+  id            String   @id @default(uuid())
+  title         String
+  description   String
+  category      String                        // CitizenReportCategory
+  status        String   @default("submitted") // submitted | under_review | in_progress | resolved | rejected
+  priority      String?                        // AlertSeverity
+  trackingId    String   @unique
+
+  latitude      Float
+  longitude     Float
+  locationName  String?
+
+  photos        String?   // JSON-encoded string array of URLs
+
+  reportedById  String?
+  reportedBy    User?     @relation("ReportedBy", fields: [reportedById], references: [id])
+
+  assignedToId  String?
+  assignedTo    User?     @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+  upvotes       Int       @default(0)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  resolvedAt    DateTime?
+
+  @@index([category])
+  @@index([status])
+  @@index([trackingId])
+  @@index([reportedById])
+  @@index([assignedToId])
+  @@index([createdAt])
+}
+
+// ──────────────────────────────────────────────────────────────
+//  Chat
+// ──────────────────────────────────────────────────────────────
+
+model ChatSession {
+  id        String   @id @default(uuid())
+  title     String   @default("New Conversation")
+  domain    String?                          // DomainId
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages  ChatMessage[]
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  role      String                           // user | assistant | system
+  content   String
+  domain    String?                          // DomainId
+
+  // Rich response data (JSON-encoded)
+  citations String?                          // JSON-encoded Citation[]
+  charts    String?                          // JSON-encoded ChartSuggestion[]
+  mapData   String?                          // JSON-encoded MapSuggestion
+  actions   String?                          // JSON-encoded SuggestedAction[]
+  metadata  String?                          // JSON-encoded Record<string, unknown>
+
+  // Relations
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([role])
+  @@index([createdAt])
+}
+
+// ──────────────────────────────────────────────────────────────
+//  Notification
+// ──────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String                           // alert | workflow | report | system | chat
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  severity  String?                          // AlertSeverity
+  actionUrl String?
+  icon      String?
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  @@index([userId])
+  @@index([read])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// ──────────────────────────────────────────────────────────────
+//  Metric (latest & historical values)
+// ──────────────────────────────────────────────────────────────
+
+model Metric {
+  id            String   @id @default(uuid())
+  metricId      String                       // Corresponds to MetricDef.id
+  domain        String                       // DomainId
+  value         Float
+  previousValue Float    @default(0)
+  change        Float    @default(0)
+  changePercent Float    @default(0)
+  trend         String   @default("stable")  // up | down | stable
+  unit          String?
+
+  recordedAt    DateTime @default(now())
+
+  @@index([metricId])
+  @@index([domain])
+  @@index([recordedAt])
+  @@unique([metricId, recordedAt])
+}
+
+// ──────────────────────────────────────────────────────────────
+//  DomainConfig
+// ──────────────────────────────────────────────────────────────
+
+model DomainConfig {
+  id          String   @id                   // DomainId string
+  name        String
+  description String
+  icon        String                         // Lucide icon name
+  color       String                         // CSS color value
+  gradient    String   @default("")          // CSS gradient
+  enabled     Boolean  @default(true)
+  metrics     String   @default("[]")        // JSON-encoded MetricDef[]
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([sortOrder])
+}
+
+// ──────────────────────────────────────────────────────────────
+//  ActivityLog
+// ──────────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  type        String                         // ActivityType
+  title       String
+  description String?
+  domain      String?                        // DomainId
+  metadata    String?                        // JSON-encoded
+
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([domain])
+  @@index([userId])
+  @@index([createdAt])
+}
