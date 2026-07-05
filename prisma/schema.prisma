@@ -214,6 +214,7 @@ model ChatMessage {
   mapData   String?                          // JSON-encoded MapSuggestion
   actions   String?                          // JSON-encoded SuggestedAction[]
   metadata  String?                          // JSON-encoded Record<string, unknown>
+  sources   String?                          // JSON-encoded Citation/Source tracking metadata
 
   // Relations
   sessionId String
@@ -319,3 +320,21 @@ model ActivityLog {
   @@index([userId])
   @@index([createdAt])
 }
+
+// ──────────────────────────────────────────────────────────────
+//  DocumentChunk (RAG local embeddings storage)
+// ──────────────────────────────────────────────────────────────
+
+model DocumentChunk {
+  id        String   @id @default(uuid())
+  docId     String
+  title     String
+  content   String
+  domain    String                           // DomainId
+  source    String
+  embedding String                           // JSON-encoded float array representing the vector
+  createdAt DateTime @default(now())
+
+  @@index([domain])
+}
+

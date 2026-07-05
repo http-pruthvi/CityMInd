@@ -12,6 +12,7 @@ export interface DomainAgent {
   handleQuery(query: string, context?: any): Promise<{
     answer: string;
     citations: Citation[];
+    sources?: string[];
     suggestedActions?: string[];
     charts?: any[];
     mapData?: any;
@@ -47,10 +48,17 @@ ${markers.slice(0, 5).map(m => `- ${m.title} at [${m.lat}, ${m.lng}] (${m.descri
       // 3. Run RAG Pipeline
       const grounded = await generateGroundedResponse(query, domain, dataContext);
 
-      // 4. Generate domain-specific suggested actions (workflows)
+      // 4. Generate domain-specific sources tracking
+      const sources = [
+        ...grounded.citations.map(c => `Policy: ${c.title} (${c.source})`),
+        ...metrics.slice(0, 2).map(m => `Sensor Reading: ${m.metricId} (${m.value})`),
+        ...alerts.slice(0, 1).map(a => `Active Incident: [${a.severity}] ${a.title}`)
+      ];
+
+      // 5. Generate domain-specific suggested actions (workflows)
       const suggestedActions = getSuggestedActionsForDomain(domain, query);
 
-      // 5. Generate domain-specific visual aids (charts or maps)
+      // 6. Generate domain-specific visual aids (charts or maps)
       const charts = timeSeries.slice(0, 1).map(ts => ({
         type: 'line' as const,
         title: ts.name || ts.label || '',
@@ -63,6 +71,7 @@ ${markers.slice(0, 5).map(m => `- ${m.title} at [${m.lat}, ${m.lng}] (${m.descri
       return {
         answer: grounded.answer,
         citations: grounded.citations,
+        sources,
         suggestedActions,
         charts,
         mapData

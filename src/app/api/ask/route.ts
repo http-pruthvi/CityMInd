@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
           charts: JSON.stringify(agentResponse.charts || []),
           mapData: JSON.stringify(agentResponse.mapData || []),
           actions: JSON.stringify(agentResponse.suggestedActions || []),
+          sources: JSON.stringify(agentResponse.sources || []),
           sessionId: session.id,
         },
       });

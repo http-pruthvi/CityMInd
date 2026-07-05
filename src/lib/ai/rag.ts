@@ -1,5 +1,6 @@
 import type { DomainId, Citation } from '@/types';
 import { chat } from './gemini';
+import { prisma } from '@/lib/db/prisma';
 
 export interface KnowledgeItem {
   id: string;
@@ -9,8 +10,8 @@ export interface KnowledgeItem {
   source: string;
 }
 
-// Simulated local knowledge base representing city manuals, policy guidelines, and documents
-const KNOWLEDGE_BASE: KnowledgeItem[] = [
+// Static local knowledge base representing city manuals, policy guidelines, and documents
+export const KNOWLEDGE_BASE: KnowledgeItem[] = [
   // Mobility & Transportation
   {
     id: 'mob-1',
@@ -44,7 +45,7 @@ const KNOWLEDGE_BASE: KnowledgeItem[] = [
   },
   {
     id: 'saf-2',
-    title: 'Crowd Anomaly Detection CCTV Standard Operating Procedures',
+    title: 'Crowd Anomaly Detection CCTV Standard Operating SOPs',
     content: 'Automatic CCTV crowd analysis triggers an alert when human density exceeds 4 persons per square meter in public plazas. Operators must visually confirm the alert. In case of verified anomalies, nearby smart patrol units are notified via the mobile terminal, and video feeds are forwarded to dispatcher screens.',
     domain: 'safety',
     source: 'Integrated Safe City Surveillance Protocol',
@@ -148,10 +149,46 @@ const KNOWLEDGE_BASE: KnowledgeItem[] = [
   },
 ];
 
-export async function searchKnowledge(query: string, domain?: DomainId): Promise<KnowledgeItem[]> {
-  const lowercaseQuery = query.toLowerCase();
+let embeddingPipeline: any = null;
 
-  // Basic word matching for local simulation of vector search
+// Helper to initialize pipeline asynchronously
+async function getEmbeddingPipeline() {
+  if (!embeddingPipeline) {
+    const { pipeline, env } = await import('@xenova/transformers');
+    // Configure cache directory
+    env.cacheDir = './.cache';
+    embeddingPipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+  }
+  return embeddingPipeline;
+}
+
+// Compute embeddings using Xenova/all-MiniLM-L6-v2 model offline
+async function getEmbedding(text: string): Promise<number[]> {
+  const extractor = await getEmbeddingPipeline();
+  const output = await extractor(text, {
+    pooling: 'mean',
+    normalize: true,
+  });
+  return Array.from(output.data);
+}
+
+// Compute cosine similarity between two vectors
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
+// Fallback keyword search in case vector search initialization fails
+function fallbackKeywordSearch(query: string, domain?: DomainId): KnowledgeItem[] {
+  const lowercaseQuery = query.toLowerCase();
   const filtered = domain
     ? KNOWLEDGE_BASE.filter((k) => k.domain === domain)
     : KNOWLEDGE_BASE;
@@ -174,12 +211,90 @@ export async function searchKnowledge(query: string, domain?: DomainId): Promise
     .slice(0, 3);
 }
 
+// Vector-based search retrieval
+export async function searchKnowledge(query: string, domain?: DomainId): Promise<KnowledgeItem[]> {
+  try {
+    // 1. Ensure DB contains embeddings, populate if empty
+    const count = await prisma.documentChunk.count();
+    if (count === 0) {
+      console.log('DocumentChunk table is empty. Generating local vector embeddings...');
+      for (const item of KNOWLEDGE_BASE) {
+        let vector: number[] = [];
+        try {
+          vector = await getEmbedding(`${item.title}\n${item.content}`);
+        } catch (err) {
+          console.error(`Failed to generate embedding for doc ${item.id}:`, err);
+        }
+        await prisma.documentChunk.create({
+          data: {
+            docId: item.id,
+            title: item.title,
+            content: item.content,
+            domain: item.domain,
+            source: item.source,
+            embedding: JSON.stringify(vector),
+          },
+        });
+      }
+      console.log('Successfully saved local policy embeddings to SQLite.');
+    }
+
+    // 2. Generate embedding for query
+    let queryVector: number[] = [];
+    try {
+      queryVector = await getEmbedding(query);
+    } catch (err) {
+      console.warn('Vector extraction failed, falling back to keyword search:', err);
+      return fallbackKeywordSearch(query, domain);
+    }
+
+    // 3. Retrieve chunks from SQLite
+    const chunks = await prisma.documentChunk.findMany({
+      where: domain ? { domain } : {},
+    });
+
+    // 4. Calculate similarity
+    const scored = chunks.map((chunk) => {
+      let score = 0;
+      try {
+        const vector = JSON.parse(chunk.embedding) as number[];
+        if (vector.length > 0 && queryVector.length > 0) {
+          score = cosineSimilarity(queryVector, vector);
+        }
+      } catch (err) {
+        console.error('Failed to parse embedding for chunk ID:', chunk.id, err);
+      }
+      return {
+        item: {
+          id: chunk.docId,
+          title: chunk.title,
+          content: chunk.content,
+          domain: chunk.domain as DomainId,
+          source: chunk.source,
+        },
+        score,
+      };
+    });
+
+    // 5. Sort and take top 3
+    return scored
+      .filter((s) => s.score > 0.1) // minimal similarity threshold
+      .sort((a, b) => b.score - a.score)
+      .map((s) => s.item)
+      .slice(0, 3);
+
+  } catch (error) {
+    console.error('Error in semantic searchKnowledge RAG:', error);
+    return fallbackKeywordSearch(query, domain);
+  }
+}
+
 export async function generateGroundedResponse(
   query: string,
   domain: DomainId,
   contextData?: string
 ): Promise<{ answer: string; citations: Citation[] }> {
-  // 1. Search knowledge base
+  // 1. Search semantic knowledge base
   const knowledge = await searchKnowledge(query, domain);
 
   // 2. Format grounding context

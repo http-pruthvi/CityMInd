@@ -18,6 +18,7 @@ interface Message {
   timestamp: Date;
   domain?: string;
   citations?: { title: string; source: string }[];
+  sources?: string[];
   charts?: any[];
   mapData?: any[];
 }
@@ -89,6 +90,7 @@ export default function CitizenChat() {
           timestamp: new Date(),
           domain: data.data.domain,
           citations: data.data.citations,
+          sources: data.data.sources,
           charts: data.data.charts,
           mapData: data.data.mapData,
         };
@@ -189,17 +191,34 @@ export default function CitizenChat() {
                 </div>
               )}
 
-              {/* Citations */}
-              {m.citations && m.citations.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-white/[0.06]">
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Grounded Sources</p>
-                  <div className="flex flex-wrap gap-2">
-                    {m.citations.map((c, i) => (
-                      <span key={i} className="px-2 py-1 rounded bg-white/[0.04] border border-white/[0.08] text-[10px] text-gray-300 flex items-center gap-1 font-mono">
-                        {c.title} ({c.source})
-                      </span>
-                    ))}
-                  </div>
+              {/* Grounded Sources & Telemetry Context */}
+              {((m.citations && m.citations.length > 0) || (m.sources && m.sources.length > 0)) && (
+                <div className="mt-4 pt-3 border-t border-white/[0.06] space-y-3">
+                  {m.citations && m.citations.length > 0 && (
+                    <div>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Grounded Policy Documents</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {m.citations.map((c, i) => (
+                          <span key={i} className="px-2 py-1 rounded bg-white/[0.04] border border-white/[0.08] text-[10px] text-gray-300 flex items-center gap-1 font-mono">
+                            📜 {c.title} ({c.source})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {m.sources && m.sources.length > 0 && (
+                    <div>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Telemetry & Context Sources</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {m.sources.map((s, i) => (
+                          <span key={i} className="px-2 py-1 rounded bg-white/[0.04] border border-white/[0.08] text-[10px] text-gray-300 flex items-center gap-1 font-mono">
+                            ⚡ {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

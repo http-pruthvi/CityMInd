@@ -102,7 +102,7 @@ async function main() {
         status: flow.status,
         triggeredById: operator.id,
         actions: {
-          create: (flow.actions || []).map((act, index) => ({
+          create: (flow.actions || flow.steps || []).map((act, index) => ({
             type: 'script',
             label: act.label,
             status: act.status || 'pending',
@@ -113,6 +113,51 @@ async function main() {
     });
   }
   console.log('Created workflows.');
+
+  // 6. Create Telemetry Metrics with deliberate anomalies for demo presentation
+  console.log('Seeding telemetry metrics in database with deliberate anomalies...');
+  const { MOCK_METRICS } = require('../src/lib/mock/data');
+  for (const [domainId, values] of Object.entries(MOCK_METRICS)) {
+    for (const m of values as any[]) {
+      let seedValue = m.value;
+      let seedTrend = m.changeDirection === 'up' ? 'up' : m.changeDirection === 'down' ? 'down' : 'stable';
+      let seedChangePercent = m.change;
+
+      // Inject anomalous outliers to catch during demo
+      if (domainId === 'environment' && m.label === 'AQI') {
+        seedValue = 284; // Spiked toxic level
+        seedTrend = 'up';
+        seedChangePercent = 226.4;
+      } else if (domainId === 'mobility' && m.label === 'Avg Commute Time') {
+        seedValue = 58; // Critical delay
+        seedTrend = 'up';
+        seedChangePercent = 107.1;
+      } else if (domainId === 'safety' && m.label === 'Active Incidents') {
+        seedValue = 48; // Critical mass of events
+        seedTrend = 'up';
+        seedChangePercent = 108.6;
+      } else if (domainId === 'energy' && m.label === 'Grid Load') {
+        seedValue = 4980; // High load grid failure risk
+        seedTrend = 'up';
+        seedChangePercent = 45.6;
+      }
+
+      await prisma.metric.create({
+        data: {
+          metricId: m.label,
+          domain: domainId,
+          value: seedValue,
+          previousValue: m.value,
+          change: seedValue - m.value,
+          changePercent: seedChangePercent,
+          trend: seedTrend,
+          unit: m.unit || '',
+          recordedAt: new Date(),
+        },
+      });
+    }
+  }
+  console.log('Created telemetry metrics.');
   console.log('Database seeding complete!');
 }
 

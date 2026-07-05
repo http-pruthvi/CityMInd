@@ -74,6 +74,21 @@ export async function approveWorkflow(workflowId: string, approverId: string) {
     include: { actions: true },
   });
 
+  // Log to ActivityLog
+  try {
+    await prisma.activityLog.create({
+      data: {
+        type: 'WORKFLOW_APPROVED',
+        title: `Workflow Approved: ${workflow.title}`,
+        description: `Workflow approved by Operator ID: ${approverId}`,
+        domain: workflow.domain,
+        userId: approverId,
+      },
+    });
+  } catch (err) {
+    console.error('Failed to log workflow approval activity:', err);
+  }
+
   eventBus.emit(EVENTS.WORKFLOW_STATUS_CHANGED, { workflowId, status: 'approved' });
 
   // 3. Trigger asynchronous simulated execution in background
@@ -92,6 +107,21 @@ export async function rejectWorkflow(workflowId: string, approverId: string, rea
     },
     include: { actions: true },
   });
+
+  // Log to ActivityLog
+  try {
+    await prisma.activityLog.create({
+      data: {
+        type: 'WORKFLOW_REJECTED',
+        title: `Workflow Rejected: ${updatedWorkflow.title}`,
+        description: `Workflow rejected by Operator ID: ${approverId}. Reason: ${reason || 'No reason provided'}`,
+        domain: updatedWorkflow.domain,
+        userId: approverId,
+      },
+    });
+  } catch (err) {
+    console.error('Failed to log workflow rejection activity:', err);
+  }
 
   eventBus.emit(EVENTS.WORKFLOW_STATUS_CHANGED, { workflowId, status: 'rejected' });
   return updatedWorkflow;

@@ -116,7 +116,35 @@ export default function OperationsDashboard() {
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-white/[0.04] scrollbar-thin">
             {activeAlerts.map((alert) => (
-              <div key={alert.id} className="p-4 hover:bg-white/[0.02] transition space-y-2 text-left">
+              <motion.div
+                key={alert.id}
+                className="p-4 hover:bg-white/[0.02] transition space-y-2 text-left"
+                animate={alert.severity === 'critical' ? {
+                  boxShadow: [
+                    "0 0 0 rgba(239, 68, 68, 0)",
+                    "0 0 10px rgba(239, 68, 68, 0.25)",
+                    "0 0 0 rgba(239, 68, 68, 0)"
+                  ],
+                  borderColor: [
+                    "rgba(259, 68, 68, 0.08)",
+                    "rgba(239, 68, 68, 0.4)",
+                    "rgba(259, 68, 68, 0.08)"
+                  ],
+                  backgroundColor: [
+                    "rgba(239, 68, 68, 0)",
+                    "rgba(239, 68, 68, 0.02)",
+                    "rgba(239, 68, 68, 0)"
+                  ]
+                } : {}}
+                transition={{
+                  duration: 2.5,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                style={{
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                }}
+              >
                 <div className="flex items-center justify-between">
                   <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
                     alert.severity === 'critical' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
@@ -135,11 +163,11 @@ export default function OperationsDashboard() {
                   </span>
                   {alert.location && (
                     <span className="text-[9px] text-gray-500 font-medium">
-                      {alert.locationName || alert.location.name || `${alert.location.lat}, ${alert.location.lng}`}
+                      {alert.locationName || (alert.location as any).name || `${(alert.location as any).lat}, ${(alert.location as any).lng}`}
                     </span>
                   )}
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>

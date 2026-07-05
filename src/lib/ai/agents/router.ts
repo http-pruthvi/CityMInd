@@ -7,6 +7,7 @@ export interface AgentResponse {
   domain: DomainId;
   confidence: number;
   citations: Citation[];
+  sources?: string[];
   suggestedActions?: string[];
   charts?: any[];
   mapData?: any;

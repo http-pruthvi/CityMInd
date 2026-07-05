@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   GitBranch, CheckSquare, XSquare, Play, RefreshCw, AlertTriangle, 
@@ -20,53 +20,69 @@ interface Workflow {
 }
 
 export default function WorkflowsManagement() {
-  const [workflows, setWorkflows] = useState<Workflow[]>(MOCK_WORKFLOWS as any);
+  const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  const fetchWorkflows = async () => {
+    try {
+      const res = await fetch('/api/workflows');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        // Map database response to match local UI structure
+        const mapped = data.data.map((w: any) => ({
+          ...w,
+          triggeredBy: w.triggeredBy?.name || 'System Operator',
+        }));
+        setWorkflows(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch workflows:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchWorkflows();
+    // Poll every 3 seconds to catch status transitions from the background pipeline
+    const interval = setInterval(fetchWorkflows, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleApprove = async (id: string) => {
     setLoadingId(id);
-    // Simulate trigger pipeline run
-    await new Promise((r) => setTimeout(r, 1500));
-    setWorkflows((prev) =>
-      prev.map((w) =>
-        w.id === id
-          ? {
-              ...w,
-              status: 'executing',
-              actions: (w.actions || w.steps || []).map((a, i) =>
-                i === 0 ? { ...a, status: 'running' } : a
-              ),
-              steps: (w.steps || w.actions || []).map((a, i) =>
-                i === 0 ? { ...a, status: 'running' } : a
-              ),
-            }
-          : w
-      )
-    );
-    setLoadingId(null);
-
-    // Simulate completion pipeline
-    setTimeout(() => {
-      setWorkflows((prev) =>
-        prev.map((w) =>
-          w.id === id
-            ? {
-                ...w,
-                status: 'completed',
-                actions: (w.actions || w.steps || []).map((a) => ({ ...a, status: 'completed' })),
-                steps: (w.steps || w.actions || []).map((a) => ({ ...a, status: 'completed' })),
-              }
-            : w
-        )
-      );
-    }, 4000);
+    try {
+      const res = await fetch(`/api/workflows/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve', userId: 'operator-1' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchWorkflows();
+      }
+    } catch (err) {
+      console.error('Workflow approval failed:', err);
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   const handleReject = async (id: string) => {
-    setWorkflows((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, status: 'rejected' } : w))
-    );
+    try {
+      const res = await fetch(`/api/workflows/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject', userId: 'operator-1', reason: 'Manually rejected by operator' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchWorkflows();
+      }
+    } catch (err) {
+      console.error('Workflow rejection failed:', err);
+    }
   };
+
+  const displayWorkflows = workflows.length > 0 ? workflows : (MOCK_WORKFLOWS as any[]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -93,7 +109,7 @@ export default function WorkflowsManagement() {
 
       <div className="grid grid-cols-1 gap-6">
         <AnimatePresence mode="popLayout">
-          {workflows.map((flow) => (
+          {displayWorkflows.map((flow) => (
             <motion.div
               key={flow.id}
               layout
@@ -122,7 +138,7 @@ export default function WorkflowsManagement() {
               {/* Execution Pipeline Steps */}
               <div className="flex flex-col gap-2 min-w-[200px] border-l border-white/[0.06] pl-6 lg:border-l lg:pl-6 border-t pt-4 lg:pt-0 lg:border-t-0">
                 <span className="text-[9px] font-bold uppercase text-gray-500 tracking-wider mb-1">Execution steps</span>
-                {(flow.actions || flow.steps || []).map((act, i) => (
+                {(flow.actions || flow.steps || []).map((act: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 text-xs text-gray-300">
                     {getStatusIcon(act.status || 'pending')}
                     <span className={act.status === 'completed' ? 'text-gray-500 line-through' : ''}>

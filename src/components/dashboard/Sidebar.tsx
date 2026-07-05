@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -28,6 +28,7 @@ import {
   Brain,
   ChevronDown,
   ChevronRight,
+  Settings,
   type LucideIcon,
 } from 'lucide-react';
 import type { DomainId } from '@/types';
@@ -90,7 +91,30 @@ export default function Sidebar({ variant = 'operator' }: SidebarProps) {
 
   const isActive = (path: string) => pathname === path;
 
-  const domains = Object.keys(DOMAIN_ICONS) as DomainId[];
+  const [enabledDomains, setEnabledDomains] = useState<DomainId[]>([]);
+
+  useEffect(() => {
+    const fetchEnabled = async () => {
+      try {
+        const res = await fetch('/api/data/domains');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          const active = data.data
+            .filter((d: any) => d.enabled)
+            .map((d: any) => d.id as DomainId);
+          setEnabledDomains(active);
+        }
+      } catch (err) {
+        console.error('Failed to fetch enabled domains:', err);
+      }
+    };
+
+    fetchEnabled();
+    const interval = setInterval(fetchEnabled, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const domains = enabledDomains.length > 0 ? enabledDomains : (Object.keys(DOMAIN_ICONS) as DomainId[]);
 
   return (
     <motion.aside
@@ -238,6 +262,10 @@ export default function Sidebar({ variant = 'operator' }: SidebarProps) {
             <Link href="/operator/workflows" className={`sidebar-link ${isActive('/operator/workflows') ? 'active' : ''}`}>
               <GitBranch size={18} />
               {!collapsed && <span>Workflows</span>}
+            </Link>
+            <Link href="/operator/settings" className={`sidebar-link ${isActive('/operator/settings') ? 'active' : ''}`}>
+              <Settings size={18} />
+              {!collapsed && <span>Module Admin</span>}
             </Link>
           </>
         ) : (
