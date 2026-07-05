@@ -149,17 +149,28 @@ export const KNOWLEDGE_BASE: KnowledgeItem[] = [
   },
 ];
 
-let embeddingPipeline: any = null;
+interface DocumentChunkRow {
+  id: string;
+  docId: string;
+  title: string;
+  content: string;
+  domain: string;
+  source: string;
+  embedding: string;
+  createdAt: Date;
+}
+
+let embeddingPipeline: unknown = null;
 
 // Helper to initialize pipeline asynchronously
 async function getEmbeddingPipeline() {
   if (!embeddingPipeline) {
     const { pipeline, env } = await import('@xenova/transformers');
     // Configure cache directory
-    env.cacheDir = './.cache';
+    (env as Record<string, unknown>).cacheDir = './.cache';
     embeddingPipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
   }
-  return embeddingPipeline;
+  return embeddingPipeline as { (text: string, opts: Record<string, unknown>): Promise<{ data: ArrayLike<number> }> };
 }
 
 // Compute embeddings using Xenova/all-MiniLM-L6-v2 model offline
@@ -251,10 +262,10 @@ export async function searchKnowledge(query: string, domain?: DomainId): Promise
     // 3. Retrieve chunks from SQLite
     const chunks = await prisma.documentChunk.findMany({
       where: domain ? { domain } : {},
-    });
+    }) as DocumentChunkRow[];
 
     // 4. Calculate similarity
-    const scored = chunks.map((chunk) => {
+    const scored = chunks.map((chunk: DocumentChunkRow) => {
       let score = 0;
       try {
         const vector = JSON.parse(chunk.embedding) as number[];
