@@ -15,7 +15,8 @@ interface Workflow {
   domain: string;
   status: 'pending' | 'approved' | 'executing' | 'completed' | 'failed' | 'rejected';
   triggeredBy: string;
-  actions: { label: string; status: string }[];
+  actions?: { label: string; status: string }[];
+  steps?: { label: string; status: string }[];
 }
 
 export default function WorkflowsManagement() {
@@ -32,7 +33,10 @@ export default function WorkflowsManagement() {
           ? {
               ...w,
               status: 'executing',
-              actions: w.actions.map((a, i) =>
+              actions: (w.actions || w.steps || []).map((a, i) =>
+                i === 0 ? { ...a, status: 'running' } : a
+              ),
+              steps: (w.steps || w.actions || []).map((a, i) =>
                 i === 0 ? { ...a, status: 'running' } : a
               ),
             }
@@ -49,7 +53,8 @@ export default function WorkflowsManagement() {
             ? {
                 ...w,
                 status: 'completed',
-                actions: w.actions.map((a) => ({ ...a, status: 'completed' })),
+                actions: (w.actions || w.steps || []).map((a) => ({ ...a, status: 'completed' })),
+                steps: (w.steps || w.actions || []).map((a) => ({ ...a, status: 'completed' })),
               }
             : w
         )
@@ -117,7 +122,7 @@ export default function WorkflowsManagement() {
               {/* Execution Pipeline Steps */}
               <div className="flex flex-col gap-2 min-w-[200px] border-l border-white/[0.06] pl-6 lg:border-l lg:pl-6 border-t pt-4 lg:pt-0 lg:border-t-0">
                 <span className="text-[9px] font-bold uppercase text-gray-500 tracking-wider mb-1">Execution steps</span>
-                {flow.actions.map((act, i) => (
+                {(flow.actions || flow.steps || []).map((act, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs text-gray-300">
                     {getStatusIcon(act.status || 'pending')}
                     <span className={act.status === 'completed' ? 'text-gray-500 line-through' : ''}>
