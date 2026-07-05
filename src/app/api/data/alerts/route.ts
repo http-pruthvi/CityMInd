@@ -2,6 +2,26 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import type { AlertSeverity, AlertStatus, DomainId } from '@/types';
 
+interface AlertWithAssignee {
+  id: string;
+  title: string;
+  description: string;
+  severity: string;
+  status: string;
+  domain: string;
+  source: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  locationName: string | null;
+  acknowledgedAt: Date | null;
+  resolvedAt: Date | null;
+  assigneeId: string | null;
+  tags: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  assignee: { name: string } | null;
+}
+
 export async function GET() {
   try {
     const dbAlerts = await prisma.alert.findMany({
@@ -11,7 +31,7 @@ export async function GET() {
       },
     });
 
-    const data = dbAlerts.map((alert) => ({
+    const data = dbAlerts.map((alert: AlertWithAssignee) => ({
       id: alert.id,
       title: alert.title,
       description: alert.description,

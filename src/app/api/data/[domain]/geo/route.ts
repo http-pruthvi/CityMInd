@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
 import type { DomainId, AlertSeverity, GeoMarker } from '@/types';
 
+interface AlertRow {
+  id: string;
+  title: string;
+  description: string;
+  severity: string;
+  status: string;
+  domain: string;
+  latitude: number | null;
+  longitude: number | null;
+  locationName: string | null;
+  createdAt: Date;
+}
+
+interface ReportRow {
+  id: string;
+  title: string;
+  description: string;
+  priority: string | null;
+  status: string;
+  latitude: number;
+  longitude: number;
+  createdAt: Date;
+}
+
 interface RouteParams {
   params: Promise<{ domain: string }>;
 }
@@ -34,7 +58,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const dbMarkers: GeoMarker[] = [];
 
     // Map Alerts to GeoMarkers
-    dbAlerts.forEach((alert) => {
+    dbAlerts.forEach((alert: AlertRow) => {
       dbMarkers.push({
         id: alert.id,
         lat: alert.latitude!,
@@ -50,7 +74,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
 
     // Map Citizen Reports to GeoMarkers
-    dbReports.forEach((report) => {
+    dbReports.forEach((report: ReportRow) => {
       dbMarkers.push({
         id: report.id,
         lat: report.latitude,
