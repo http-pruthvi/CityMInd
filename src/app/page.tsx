@@ -30,6 +30,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { DOMAIN_CONFIGS } from '@/lib/mock/data';
+import CitySelector from '@/components/ui/CitySelector';
 import type { DomainId } from '@/types';
 
 const DOMAIN_ICONS: Record<DomainId, LucideIcon> = {
@@ -126,7 +127,8 @@ export default function LandingPage() {
             CityMind
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <CitySelector compact />
           <Link href="/citizen/chat" className="btn btn-ghost" style={{ fontSize: '0.85rem' }}>Citizen Portal</Link>
           <Link href="/operator" className="btn btn-ghost" style={{ fontSize: '0.85rem' }}>Operator</Link>
           <Link href="/leadership/analytics" className="btn btn-primary" style={{ fontSize: '0.85rem' }}>Leadership</Link>

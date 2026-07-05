@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
+import type { Prisma } from '@prisma/client';
 import type { DomainId, AlertSeverity, AlertStatus } from '@/types';
+
+type AlertWithAssignee = Prisma.AlertGetPayload<{
+  include: { assignee: { select: { name: true } } };
+}>;
 
 interface RouteParams {
   params: Promise<{ domain: string }>;
@@ -22,7 +27,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     });
 
-    const data = dbAlerts.map((alert) => ({
+    const data = dbAlerts.map((alert: AlertWithAssignee) => ({
       id: alert.id,
       title: alert.title,
       description: alert.description,
