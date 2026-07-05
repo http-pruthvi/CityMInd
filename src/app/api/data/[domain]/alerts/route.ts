@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import type { Prisma } from '@prisma/client';
 import type { DomainId, AlertSeverity, AlertStatus } from '@/types';
 
-type AlertWithAssignee = Prisma.AlertGetPayload<{
-  include: { assignee: { select: { name: true } } };
-}>;
+interface AlertWithAssignee {
+  id: string;
+  title: string;
+  description: string;
+  severity: string;
+  status: string;
+  domain: string;
+  source: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  locationName: string | null;
+  acknowledgedAt: Date | null;
+  resolvedAt: Date | null;
+  assigneeId: string | null;
+  tags: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  assignee: { name: string } | null;
+}
 
 interface RouteParams {
   params: Promise<{ domain: string }>;
