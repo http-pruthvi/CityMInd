@@ -1,15 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, CheckCircle, BellRing, Clock, UserCheck } from 'lucide-react';
-import { MOCK_ALERTS } from '@/lib/mock/data';
-import type { AlertSeverity, AlertStatus } from '@/types';
+import { CheckCircle, BellRing, Clock } from 'lucide-react';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import type { Alert, AlertSeverity, AlertStatus } from '@/types';
 
 export default function AlertsManagement() {
-  const [alerts, setAlerts] = useState(MOCK_ALERTS);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedSeverity, setSelectedSeverity] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('active');
+
+  const fetchAlerts = async () => {
+    try {
+      const res = await fetch('/api/data/alerts');
+      const data = await res.json();
+      if (data.success) setAlerts(data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch alerts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAlerts();
+  }, []);
 
   const handleAction = (id: string, action: AlertStatus) => {
     setAlerts((prev) =>
@@ -25,18 +43,18 @@ export default function AlertsManagement() {
 
   return (
     <div className="space-y-6 text-left">
-      <div>
-        <h1 className="text-xl font-bold">Alert Operations Queue</h1>
-        <p className="text-xs text-gray-400">Triaged alarms and anomaly logs detected by IoT grid and camera models.</p>
-      </div>
+      <PageHeader
+        title="Alert Queue"
+        description="Review and triage alerts stored in the database. Filter by severity or status."
+      />
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/[0.01] border border-white/[0.06] p-4 rounded-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 panel p-4">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] text-gray-500 font-mono uppercase mr-2">Severity</span>
           {['All', 'Critical', 'High', 'Medium', 'Low'].map((s) => (
             <button
               key={s}
+              type="button"
               onClick={() => setSelectedSeverity(s)}
               className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition ${
                 selectedSeverity === s
@@ -49,11 +67,12 @@ export default function AlertsManagement() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] text-gray-500 font-mono uppercase mr-2">Status</span>
           {['All', 'active', 'acknowledged', 'resolved'].map((st) => (
             <button
               key={st}
+              type="button"
               onClick={() => setSelectedStatus(st)}
               className={`px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition ${
                 selectedStatus === st
@@ -67,10 +86,13 @@ export default function AlertsManagement() {
         </div>
       </div>
 
-      {/* Alert Cards Container */}
+      {loading && (
+        <div className="info-banner">Loading alerts…</div>
+      )}
+
       <div className="space-y-4">
         <AnimatePresence mode="popLayout">
-          {filteredAlerts.map((alert, idx) => (
+          {filteredAlerts.map((alert) => (
             <motion.div
               key={alert.id}
               layout
@@ -78,13 +100,13 @@ export default function AlertsManagement() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className={`bg-white/[0.02] border rounded-xl p-5 hover:bg-white/[0.04] transition flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                alert.status === 'resolved' ? 'opacity-60 border-white/[0.04]' : 
-                alert.severity === 'critical' ? 'border-red-500/20 bg-red-950/5' : 'border-white/[0.08]'
+              className={`panel p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                alert.status === 'resolved' ? 'opacity-60' :
+                alert.severity === 'critical' ? 'border-red-500/20' : ''
               }`}
             >
               <div className="space-y-2 flex-1">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
                     alert.severity === 'critical' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                     alert.severity === 'high' ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
@@ -95,36 +117,32 @@ export default function AlertsManagement() {
                   <span className="text-[10px] text-cyan-400 font-mono uppercase tracking-wider bg-cyan-500/5 px-2 py-0.5 rounded border border-cyan-500/10">
                     {alert.domain}
                   </span>
-                  {alert.location && (
-                    <span className="text-[10px] text-gray-500 font-medium">
-                      {alert.locationName || alert.location.name || `${alert.location.lat}, ${alert.location.lng}`}
-                    </span>
-                  )}
                 </div>
 
                 <h3 className="text-sm font-bold text-gray-200">{alert.title}</h3>
                 <p className="text-xs text-gray-400 leading-relaxed max-w-2xl">{alert.description}</p>
 
-                <div className="flex items-center gap-4 text-[10px] text-gray-500 font-mono pt-2">
-                  <span className="flex items-center gap-1"><Clock size={11} /> 10:24 AM</span>
-                  {alert.assignee && (
-                    <span className="flex items-center gap-1"><UserCheck size={11} /> {alert.assignee}</span>
-                  )}
-                </div>
+                {alert.createdAt && (
+                  <div className="flex items-center gap-1 text-[10px] text-gray-500 font-mono pt-1">
+                    <Clock size={11} />
+                    {new Date(alert.createdAt).toLocaleString()}
+                  </div>
+                )}
               </div>
 
-              {/* Action Buttons */}
               <div className="flex items-center gap-2 self-start md:self-center">
                 {alert.status === 'active' && (
                   <button
+                    type="button"
                     onClick={() => handleAction(alert.id, 'acknowledged')}
-                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:border-white/[0.12] transition text-[10px] font-bold uppercase tracking-wider text-gray-300 flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition text-[10px] font-bold uppercase tracking-wider text-gray-300 flex items-center gap-1.5"
                   >
                     <BellRing size={12} /> Acknowledge
                   </button>
                 )}
                 {alert.status !== 'resolved' && (
                   <button
+                    type="button"
                     onClick={() => handleAction(alert.id, 'resolved')}
                     className="px-3 py-1.5 rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 transition text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5"
                   >
@@ -135,10 +153,11 @@ export default function AlertsManagement() {
             </motion.div>
           ))}
 
-          {filteredAlerts.length === 0 && (
-            <div className="text-center py-16 border border-dashed border-white/[0.06] rounded-xl text-xs text-gray-500">
-              No alerts found for this filter criteria.
-            </div>
+          {!loading && filteredAlerts.length === 0 && (
+            <EmptyState
+              title="No alerts match your filters"
+              description="Try changing severity or status filters, or add alerts via the database seed."
+            />
           )}
         </AnimatePresence>
       </div>

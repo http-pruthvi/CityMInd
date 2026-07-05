@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import PageHeader from '@/components/ui/PageHeader';
 import { FlaskConical, Play, Sparkles, CheckCircle2, ChevronRight } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
@@ -83,10 +84,10 @@ export default function PolicySimulate() {
 
   return (
     <div className="space-y-6 text-left">
-      <div>
-        <h1 className="text-xl font-bold">Policy Sandbox Simulator</h1>
-        <p className="text-xs text-gray-400">Run simulated policy adjustments using Vertex AI custom predictive models.</p>
-      </div>
+      <PageHeader
+        title="Policy Sandbox"
+        description="Explore what-if scenarios with adjustable parameters. Chart outputs are illustrative templates, not live city telemetry."
+      />
 
       {/* Main Sandbox Workspace */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

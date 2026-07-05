@@ -1,25 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import type { DomainId, AlertSeverity, AlertStatus } from '@/types';
+import type { AlertSeverity, AlertStatus, DomainId } from '@/types';
 
-interface RouteParams {
-  params: Promise<{ domain: string }>;
-}
-
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET() {
   try {
-    const { domain } = await params;
-    const domainId = domain as DomainId;
-    
-    // Query live database alerts
     const dbAlerts = await prisma.alert.findMany({
-      where: { domain: domainId },
       orderBy: { createdAt: 'desc' },
       include: {
-        assignee: {
-          select: { name: true }
-        }
-      }
+        assignee: { select: { name: true } },
+      },
     });
 
     const data = dbAlerts.map((alert) => ({
@@ -45,14 +34,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       assigneeName: alert.assignee?.name || undefined,
     }));
 
-    return NextResponse.json({
-      success: true,
-      data,
-    });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, data });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

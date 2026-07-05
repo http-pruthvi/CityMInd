@@ -6,7 +6,6 @@ import {
   GitBranch, CheckSquare, XSquare, Play, RefreshCw, AlertTriangle, 
   Hourglass, CheckCircle2 
 } from 'lucide-react';
-import { MOCK_WORKFLOWS } from '@/lib/mock/data';
 
 interface Workflow {
   id: string;
@@ -82,7 +81,7 @@ export default function WorkflowsManagement() {
     }
   };
 
-  const displayWorkflows = workflows.length > 0 ? workflows : (MOCK_WORKFLOWS as any[]);
+  const displayWorkflows = workflows;
 
   const getStatusIcon = (status: string) => {
     switch (status) {

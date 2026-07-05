@@ -32,6 +32,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import type { DomainId } from '@/types';
+import { useDashboardStore } from '@/stores/dashboardStore';
 
 const DOMAIN_ICONS: Record<DomainId, LucideIcon> = {
   mobility: Bus,
@@ -86,6 +87,9 @@ export default function Sidebar({ variant = 'operator' }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [domainsOpen, setDomainsOpen] = useState(true);
   const pathname = usePathname();
+  const activeAlertCount = useDashboardStore((s) =>
+    s.alerts.filter((a) => a.status === 'active').length
+  );
 
   const basePath = variant === 'leadership' ? '/leadership' : '/operator';
 
@@ -245,7 +249,7 @@ export default function Sidebar({ variant = 'operator' }: SidebarProps) {
             <Link href="/operator/alerts" className={`sidebar-link ${isActive('/operator/alerts') ? 'active' : ''}`}>
               <Bell size={18} />
               {!collapsed && <span>Alerts</span>}
-              {!collapsed && (
+              {!collapsed && activeAlertCount > 0 && (
                 <span style={{
                   marginLeft: 'auto',
                   background: 'hsla(0, 84%, 60%, 0.15)',
@@ -255,7 +259,7 @@ export default function Sidebar({ variant = 'operator' }: SidebarProps) {
                   fontSize: '0.7rem',
                   fontWeight: 600,
                 }}>
-                  47
+                  {activeAlertCount}
                 </span>
               )}
             </Link>

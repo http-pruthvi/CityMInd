@@ -198,8 +198,8 @@ function CitizenChatContent() {
               )}
 
               {(m.mapData && m.mapData.length > 0) && (
-                <div className="mt-4 rounded-xl border border-white/[0.06] overflow-hidden h-[220px]">
-                  <CityMap markers={m.mapData} zoom={11} interactive={true} />
+                <div className="mt-4 rounded-xl border border-white/[0.06] overflow-hidden h-[220px] relative">
+                  <CityMap markers={m.mapData} zoom={11} interactive={true} embedded height="100%" />
                 </div>
               )}
 

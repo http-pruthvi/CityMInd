@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, useInView } from 'framer-motion';
@@ -22,9 +22,6 @@ import {
   Users,
   Brain,
   Activity,
-  Radio,
-  MapPin,
-  Clock,
   UserCircle,
   Settings,
   TrendingUp,
@@ -40,36 +37,6 @@ const DOMAIN_ICONS: Record<DomainId, LucideIcon> = {
   environment: Leaf, waste: Trash2, energy: Zap, engagement: MessageSquare,
   accessibility: Accessibility, disaster: AlertTriangle, tourism: Map, community: Users,
 };
-
-// Animated counter hook
-function useCounter(target: number, duration: number = 2000, decimals: number = 0) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true });
-
-  useEffect(() => {
-    if (!inView) return;
-    let start = 0;
-    const startTime = performance.now();
-    const step = (timestamp: number) => {
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      start = eased * target;
-      setCount(Number(start.toFixed(decimals)));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [inView, target, duration, decimals]);
-
-  return { count, ref };
-}
-
-const STATS = [
-  { label: 'Population', value: 32.9, suffix: 'M', decimals: 1, icon: Users },
-  { label: 'Active Sensors', value: 12847, suffix: '', decimals: 0, icon: Radio },
-  { label: 'Districts', value: 11, suffix: '', decimals: 0, icon: MapPin },
-  { label: 'Avg Response', value: 4.2, suffix: 'min', decimals: 1, icon: Clock },
-];
 
 const ROLES = [
   {
@@ -238,7 +205,8 @@ export default function LandingPage() {
             }}
           >
             AI-Powered Decision Intelligence for Smart Cities.
-            Monitor, analyze, and optimize city operations across 12 domains in real-time.
+            Monitor, analyze, and optimize city operations across 12 domains.
+            Choose a role below to get started.
           </motion.p>
 
           {/* Search Bar */}
@@ -290,34 +258,31 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
 
-        {/* ═══ Live Stats ═══ */}
+        {/* Platform highlights */}
         <motion.div
           initial={{ y: 40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.8 }}
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '1.5rem',
-            marginTop: '4rem',
-            maxWidth: 700,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: '1.25rem',
+            marginTop: '3rem',
+            maxWidth: 640,
             width: '100%',
           }}
         >
-          {STATS.map((stat) => {
-            const counter = useCounter(stat.value, 2000, stat.decimals);
-            const Icon = stat.icon;
+          {[
+            { label: '12 Domains', icon: Activity },
+            { label: '3 Portals', icon: Users },
+            { label: 'AI Assistant', icon: Brain },
+            { label: 'Live Maps', icon: Map },
+          ].map((item) => {
+            const Icon = item.icon;
             return (
-              <div key={stat.label} style={{ textAlign: 'center' }}>
+              <div key={item.label} className="card-glass" style={{ textAlign: 'center', padding: '1.25rem 1rem' }}>
                 <Icon size={20} style={{ color: 'var(--primary)', marginBottom: '0.5rem' }} />
-                <div ref={counter.ref} className="mono" style={{
-                  fontSize: '1.5rem',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                }}>
-                  {counter.count.toLocaleString()}{stat.suffix && <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginLeft: 2 }}>{stat.suffix}</span>}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{stat.label}</div>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{item.label}</div>
               </div>
             );
           })}
@@ -387,10 +352,7 @@ export default function LandingPage() {
                           {domain.description}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span className="mono" style={{ fontSize: '1rem', fontWeight: 700, color: domain.color }}>
-                            {domain.stat}
-                          </span>
-                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{domain.statLabel}</span>
+                          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{domain.metrics?.length || 0} metrics tracked</span>
                         </div>
                       </div>
                     </div>

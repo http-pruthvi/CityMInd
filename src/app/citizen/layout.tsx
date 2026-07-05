@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Brain, MessageSquare, FileWarning, LayoutGrid, UserCircle } from 'lucide-react';
+import CitySelector from '@/components/ui/CitySelector';
 
 const NAV_LINKS = [
   { href: '/citizen/chat', label: 'Chat', icon: MessageSquare },
@@ -15,9 +16,7 @@ export default function CitizenLayout({ children }: { children: React.ReactNode 
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Navbar */}
-      <nav className="navbar" style={{ padding: '0 1.5rem' }}>
-        {/* Left - Logo */}
+      <nav className="navbar app-header" style={{ padding: '0.75rem 1.25rem', flexWrap: 'wrap', gap: '0.75rem', height: 'auto' }}>
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
           <div style={{
             width: 30,
@@ -34,8 +33,7 @@ export default function CitizenLayout({ children }: { children: React.ReactNode 
           <span style={{ fontSize: '1rem', fontWeight: 700 }} className="glow-text">CityMind</span>
         </Link>
 
-        {/* Center - Nav Links */}
-        <div style={{ display: 'flex', gap: '0.25rem' }}>
+        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
           {NAV_LINKS.map((link) => {
             const Icon = link.icon;
             const isActive = pathname === link.href;
@@ -53,23 +51,23 @@ export default function CitizenLayout({ children }: { children: React.ReactNode 
           })}
         </div>
 
-        {/* Right - Avatar */}
-        <div style={{
-          width: 34,
-          height: 34,
-          borderRadius: '50%',
-          background: 'linear-gradient(135deg, var(--primary), var(--accent-blue))',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-        }}>
-          <UserCircle size={20} color="#fff" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: 'auto' }}>
+          <CitySelector compact />
+          <div style={{
+            width: 34,
+            height: 34,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, var(--primary), var(--accent-blue))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <UserCircle size={20} color="#fff" />
+          </div>
         </div>
       </nav>
 
-      {/* Content */}
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <main className="app-main" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {children}
       </main>
     </div>

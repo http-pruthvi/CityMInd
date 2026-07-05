@@ -6,7 +6,8 @@ import 'leaflet/dist/leaflet.css';
 import type { GeoMarker, AlertSeverity } from '@/types';
 import { DOMAIN_CONFIGS } from '@/lib/mock/data';
 
-const getDomainConfig = (domainId: string) => DOMAIN_CONFIGS.find(d => d.id === domainId) || { color: '#06b6d4', name: domainId };
+const getDomainConfig = (domainId: string) =>
+  DOMAIN_CONFIGS.find((d) => d.id === domainId) || { color: '#06b6d4', name: domainId };
 
 interface CityMapProps {
   markers?: GeoMarker[];
@@ -18,6 +19,8 @@ interface CityMapProps {
   draggableMarker?: boolean;
   onLocationSelect?: (lat: number, lng: number) => void;
   selectedPosition?: [number, number] | null;
+  /** When true, map fills its parent without extra border (for use inside MapPanel). */
+  embedded?: boolean;
 }
 
 const getSeverityColor = (severity?: AlertSeverity, defaultColor: string = '#06b6d4'): string => {
@@ -74,7 +77,9 @@ export default function CityMap({
   draggableMarker = false,
   onLocationSelect,
   selectedPosition,
+  embedded = false,
 }: CityMapProps) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const draggableRef = useRef<L.Marker | null>(null);
@@ -118,7 +123,20 @@ export default function CityMap({
       });
     }
 
+    // Leaflet needs a size recalculation after the container is laid out
+    const resize = () => map.invalidateSize();
+    requestAnimationFrame(resize);
+    const timer = window.setTimeout(resize, 150);
+
+    const observer =
+      typeof ResizeObserver !== 'undefined' && wrapperRef.current
+        ? new ResizeObserver(resize)
+        : null;
+    observer?.observe(wrapperRef.current!);
+
     return () => {
+      window.clearTimeout(timer);
+      observer?.disconnect();
       map.remove();
       mapInstanceRef.current = null;
     };
@@ -129,7 +147,6 @@ export default function CityMap({
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    // Clear existing markers (except draggable)
     map.eachLayer((layer) => {
       if (layer instanceof L.Marker && layer !== draggableRef.current) {
         map.removeLayer(layer);
@@ -139,7 +156,6 @@ export default function CityMap({
     markers.forEach((m) => {
       const domain = getDomainConfig(m.domain);
       const icon = createMarkerIcon(domain.color, m.severity);
-
       const marker = L.marker([m.lat, m.lng], { icon }).addTo(map);
 
       const popupContent = `
@@ -172,7 +188,6 @@ export default function CityMap({
       `;
 
       marker.bindPopup(popupContent);
-
       if (onMarkerClick) {
         marker.on('click', () => onMarkerClick(m));
       }
@@ -185,11 +200,20 @@ export default function CityMap({
     }
   }, [selectedPosition]);
 
+  useEffect(() => {
+    if (mapInstanceRef.current && center) {
+      mapInstanceRef.current.setView(center, zoom);
+      requestAnimationFrame(() => mapInstanceRef.current?.invalidateSize());
+    }
+  }, [center, zoom]);
+
   return (
     <div
-      ref={mapRef}
-      className="map-container"
+      ref={wrapperRef}
+      className={`map-wrapper ${embedded ? 'map-wrapper-embedded' : ''}`}
       style={{ height }}
-    />
+    >
+      <div ref={mapRef} className={`map-container ${embedded ? 'map-container-embedded' : ''}`} />
+    </div>
   );
 }

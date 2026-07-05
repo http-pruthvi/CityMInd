@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { MOCK_GEO_MARKERS } from '@/lib/mock/data';
 import type { DomainId, AlertSeverity, GeoMarker } from '@/types';
 
 interface RouteParams {
@@ -66,13 +65,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       });
     });
 
-    // Combine DB markers and fallback to mock markers if empty (mock markers have rich sensors/assets)
-    const mockMarkers = MOCK_GEO_MARKERS[domainId] || [];
-    const data = [...dbMarkers, ...mockMarkers];
-
     return NextResponse.json({
       success: true,
-      data,
+      data: dbMarkers,
     });
   } catch (error: any) {
     return NextResponse.json(

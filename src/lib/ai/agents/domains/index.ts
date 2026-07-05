@@ -1,82 +1,118 @@
 import type { DomainId, Citation } from '@/types';
 import { generateGroundedResponse } from '../../rag';
-import { 
-  DOMAIN_CONFIGS, 
-  MOCK_METRICS, 
-  MOCK_ALERTS, 
-  MOCK_GEO_MARKERS, 
-  MOCK_TIMESERIES 
-} from '@/lib/mock/data';
+import { DOMAIN_CONFIGS } from '@/lib/mock/data';
+import { prisma } from '@/lib/db/prisma';
 
 export interface DomainAgent {
-  handleQuery(query: string, context?: any): Promise<{
+  handleQuery(query: string, context?: unknown): Promise<{
     answer: string;
     citations: Citation[];
     sources?: string[];
     suggestedActions?: string[];
-    charts?: any[];
-    mapData?: any;
+    charts?: unknown[];
+    mapData?: unknown;
   }>;
 }
 
-// Factory to create domain agents dynamically with specialized data context and instructions
-function createDomainAgent(domain: DomainId): DomainAgent {
-  return {
-    async handleQuery(query: string, context?: any) {
-      // 1. Gather domain-specific live statistics to ground the agent
-      const config = DOMAIN_CONFIGS.find(d => d.id === domain);
-      const metrics = MOCK_METRICS[domain] || [];
-      const alerts = (MOCK_ALERTS || []).filter(a => a.domain === domain && a.status !== 'resolved');
-      const markers = MOCK_GEO_MARKERS[domain] || [];
-      const timeSeries = MOCK_TIMESERIES[domain] || [];
+async function getLiveDomainContext(domain: DomainId): Promise<string> {
+  const config = DOMAIN_CONFIGS.find((d) => d.id === domain);
 
-      // 2. Format as grounding context
-      let dataContext = `DOMAIN SUMMARY:
+  const [metrics, alerts, geoAlerts] = await Promise.all([
+    prisma.metric.findMany({
+      where: { domain },
+      orderBy: { recordedAt: 'desc' },
+      take: 20,
+    }),
+    prisma.alert.findMany({
+      where: { domain, status: { not: 'resolved' } },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+    prisma.alert.findMany({
+      where: { domain, latitude: { not: null }, longitude: { not: null } },
+      take: 5,
+    }),
+  ]);
+
+  const latestMetrics = new Map<string, (typeof metrics)[0]>();
+  for (const m of metrics) {
+    if (!latestMetrics.has(m.metricId)) latestMetrics.set(m.metricId, m);
+  }
+
+  return `DOMAIN SUMMARY:
 Domain: ${config?.name || domain}
 Description: ${config?.description || ''}
 
-LIVE METRICS:
-${metrics.map(m => `- ${m.metricId}: Current Value: ${m.value}, Previous Value: ${m.previousValue}, Trend: ${m.trend}, Change: ${m.changePercent}%`).join('\n')}
+LIVE METRICS (from database):
+${Array.from(latestMetrics.values()).length === 0
+  ? '- No metrics recorded yet.'
+  : Array.from(latestMetrics.values())
+      .map((m) => `- ${m.metricId}: ${m.value}${m.unit ? ` ${m.unit}` : ''} (trend: ${m.trend})`)
+      .join('\n')}
 
-ACTIVE TICKET/ALERT FEED:
-${alerts.map(a => `- [Severity: ${a.severity}] ${a.title} (Status: ${a.status}, Location: ${a.location || 'N/A'})`).join('\n')}
+ACTIVE ALERTS (from database):
+${alerts.length === 0
+  ? '- No active alerts.'
+  : alerts
+      .map((a) => `- [${a.severity}] ${a.title} (${a.status})`)
+      .join('\n')}
 
-ACTIVE SENSOR MARKERS:
-${markers.slice(0, 5).map(m => `- ${m.title} at [${m.lat}, ${m.lng}] (${m.description})`).join('\n')}
+GEOLOCATED INCIDENTS:
+${geoAlerts.length === 0
+  ? '- None with coordinates.'
+  : geoAlerts
+      .map((a) => `- ${a.title} at [${a.latitude}, ${a.longitude}]`)
+      .join('\n')}
 `;
+}
 
-      // 3. Run RAG Pipeline
+function createDomainAgent(domain: DomainId): DomainAgent {
+  return {
+    async handleQuery(query: string) {
+      const config = DOMAIN_CONFIGS.find((d) => d.id === domain);
+      const dataContext = await getLiveDomainContext(domain);
       const grounded = await generateGroundedResponse(query, domain, dataContext);
 
-      // 4. Generate domain-specific sources tracking
+      const [dbAlerts, dbGeo] = await Promise.all([
+        prisma.alert.findMany({
+          where: { domain, status: { not: 'resolved' } },
+          take: 3,
+        }),
+        prisma.alert.findMany({
+          where: { domain, latitude: { not: null }, longitude: { not: null } },
+          take: 10,
+        }),
+      ]);
+
       const sources = [
-        ...grounded.citations.map(c => `Policy: ${c.title} (${c.source})`),
-        ...metrics.slice(0, 2).map(m => `Sensor Reading: ${m.metricId} (${m.value})`),
-        ...alerts.slice(0, 1).map(a => `Active Incident: [${a.severity}] ${a.title}`)
+        ...grounded.citations.map((c) => `Policy: ${c.title} (${c.source})`),
+        ...dbAlerts.map((a) => `Alert: [${a.severity}] ${a.title}`),
       ];
 
-      // 5. Generate domain-specific suggested actions (workflows)
-      const suggestedActions = getSuggestedActionsForDomain(domain, query);
-
-      // 6. Generate domain-specific visual aids (charts or maps)
-      const charts = timeSeries.slice(0, 1).map(ts => ({
-        type: 'line' as const,
-        title: ts.name || ts.label || '',
-        data: (ts.points || ts.data || []).slice(-10), // Take recent points
-        color: config?.color || '#06b6d4'
-      }));
-
-      const mapData = markers.slice(0, 10);
+      const mapData =
+        dbGeo.length > 0
+          ? dbGeo.map((a) => ({
+              id: a.id,
+              lat: a.latitude!,
+              lng: a.longitude!,
+              type: 'alert',
+              title: a.title,
+              description: a.description,
+              severity: a.severity,
+              domain,
+              status: a.status,
+            }))
+          : [];
 
       return {
         answer: grounded.answer,
         citations: grounded.citations,
         sources,
-        suggestedActions,
-        charts,
-        mapData
+        suggestedActions: getSuggestedActionsForDomain(domain, query),
+        charts: [],
+        mapData,
       };
-    }
+    },
   };
 }
 
@@ -85,35 +121,18 @@ function getSuggestedActionsForDomain(domain: DomainId, query: string): string[]
   switch (domain) {
     case 'mobility':
       if (lowercase.includes('delay') || lowercase.includes('traffic') || lowercase.includes('bus')) {
-        return ['Adjust Traffic Signal Timing', 'Reroute Sector 4 Buses'];
+        return ['Review traffic signal timing', 'Check transit route schedules'];
       }
-      return ['Deploy Parking Sensor Recalibration', 'Audit Route Schedules'];
+      return ['Review mobility metrics', 'Audit route data'];
     case 'safety':
-      return ['Dispatch Smart Patrol Unit', 'Trigger Public Safety Broadcast'];
-    case 'health':
-      return ['Activate Emergency Green Corridor', 'Deploy Mobile Health Unit'];
+      return ['Review active safety alerts', 'Check response times'];
     case 'environment':
-      return ['Trigger Localized AQI Warning', 'Initiate Sensor Calibration Scan'];
-    case 'waste':
-      return ['Dispatch Waste Truck Rerouting', 'Raise Illegal Dumping Fine Ticket'];
-    case 'energy':
-      return ['Initiate Commercial HVAC Load-Shedding', 'Dispatch Grid Maintenance Crew'];
-    case 'engagement':
-      return ['Auto-route Grievance Ticket', 'Draft Response Template'];
-    case 'accessibility':
-      return ['Generate Walkway Repair Ticket', 'Approve Accessibility Grant'];
-    case 'disaster':
-      return ['Activate Flood Siren Broadcast', 'Deploy Community Evacuation Shuttles'];
-    case 'tourism':
-      return ['Activate Pedestrian Diversions', 'Deploy Digital Signage Campaign'];
-    case 'community':
-      return ['Approve Social Program Fund Allocation', 'Mobilize Community Volunteers'];
+      return ['Review air quality readings', 'Check sensor status'];
     default:
-      return ['Review System Metrics', 'Contact Sector Coordinator'];
+      return ['Review domain metrics', 'Check active alerts'];
   }
 }
 
-// Generate the Record containing all 12 domain agents
 export const domainAgents: Record<DomainId, DomainAgent> = {
   mobility: createDomainAgent('mobility'),
   safety: createDomainAgent('safety'),

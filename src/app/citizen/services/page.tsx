@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, ChevronRight, HelpCircle, PhoneCall, Globe } from 'lucide-react';
-import { MOCK_SERVICES } from '@/lib/mock/data';
+import { CITY_SERVICES } from '@/lib/config/services';
+import PageHeader from '@/components/ui/PageHeader';
 
 const CATEGORIES = ['All', 'Infrastructure', 'Health', 'Education', 'Safety', 'Utilities'];
 
@@ -11,7 +12,7 @@ export default function ServicesDirectory() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
-  const filteredServices = MOCK_SERVICES.filter((service) => {
+  const filteredServices = CITY_SERVICES.filter((service) => {
     const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           service.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = activeCategory === 'All' || service.category === activeCategory;
@@ -22,11 +23,10 @@ export default function ServicesDirectory() {
     <div className="min-h-[calc(100vh-64px)] bg-[#0c101b] text-white p-8">
       <div className="max-w-6xl mx-auto space-y-8">
         
-        {/* Title */}
-        <div>
-          <h1 className="text-xl font-bold">City Services Directory</h1>
-          <p className="text-sm text-gray-400">Quickly find and access departments, emergency portals, or administrative forms.</p>
-        </div>
+        <PageHeader
+          title="City Services"
+          description="Official contact directory for municipal departments. These are reference links — not simulated live data."
+        />
 
         {/* Search & Category Filter */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

@@ -1,0 +1,60 @@
+import type { CityService } from '@/types';
+
+/** Static municipal service directory — contact info only, not simulated telemetry. */
+export const CITY_SERVICES: CityService[] = [
+  {
+    id: 'svc-311',
+    name: '311 Citizen Helpline',
+    description: 'Report non-emergency civic issues: roads, water, sanitation, streetlights.',
+    category: 'Infrastructure',
+    department: 'Municipal Corporation',
+    status: 'operational',
+    contactInfo: { phone: '311', email: 'help@citymind.local' },
+  },
+  {
+    id: 'svc-transit',
+    name: 'Public Transit Info',
+    description: 'Bus and metro routes, schedules, and service disruption updates.',
+    category: 'Infrastructure',
+    department: 'Transport Authority',
+    status: 'operational',
+    url: 'https://example.com/transit',
+    contactInfo: { phone: '1800-TRANSIT' },
+  },
+  {
+    id: 'svc-health',
+    name: 'Public Health Portal',
+    description: 'Clinic locations, vaccination camps, and health advisories.',
+    category: 'Health',
+    department: 'Health Department',
+    status: 'operational',
+    contactInfo: { phone: '104' },
+  },
+  {
+    id: 'svc-education',
+    name: 'Education Services',
+    description: 'School enrollment, scholarship schemes, and digital learning access.',
+    category: 'Education',
+    department: 'Education Board',
+    status: 'operational',
+    contactInfo: { email: 'education@citymind.local' },
+  },
+  {
+    id: 'svc-safety',
+    name: 'Emergency & Safety',
+    description: 'Police, fire, and ambulance emergency contacts.',
+    category: 'Safety',
+    department: 'Disaster Management',
+    status: 'operational',
+    contactInfo: { phone: '112' },
+  },
+  {
+    id: 'svc-utilities',
+    name: 'Utilities & Billing',
+    description: 'Water, electricity, and property tax payment and outage reporting.',
+    category: 'Utilities',
+    department: 'Utilities Board',
+    status: 'operational',
+    contactInfo: { phone: '1912' },
+  },
+];

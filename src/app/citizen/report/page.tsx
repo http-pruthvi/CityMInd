@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, MapPin, CheckCircle, ArrowRight, Shield, AlertTriangle, HelpCircle } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { useDashboardStore, getCityConfig } from '@/stores/dashboardStore';
 
 const CityMap = dynamic(() => import('@/components/maps/CityMap'), { ssr: false });
 
@@ -15,16 +16,23 @@ const CATEGORIES = [
 ];
 
 export default function IssueReport() {
+  const currentCity = useDashboardStore((s) => s.currentCity);
+  const cityConfig = getCityConfig(currentCity);
+
   const [step, setStep] = useState(1);
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number }>({
-    lat: 28.6139,
-    lng: 77.2090
+    lat: cityConfig.lat,
+    lng: cityConfig.lng,
   });
   const [loading, setLoading] = useState(false);
   const [trackingId, setTrackingId] = useState('');
+
+  useEffect(() => {
+    setSelectedCoords({ lat: cityConfig.lat, lng: cityConfig.lng });
+  }, [cityConfig.lat, cityConfig.lng]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -195,14 +203,17 @@ export default function IssueReport() {
                 <p className="text-sm text-gray-400">Click or drag the marker to pinpoint the exact location of the issue.</p>
               </div>
 
-              <div className="h-[280px] rounded-xl overflow-hidden border border-white/[0.08]">
-                <CityMap 
-                  center={[selectedCoords.lat, selectedCoords.lng]} 
-                  zoom={12} 
-                  draggableMarker={true} 
-                  onLocationSelect={handleLocationSelect} 
+              <div className="h-[280px] rounded-xl overflow-hidden border border-white/[0.08] relative">
+                <CityMap
+                  center={[selectedCoords.lat, selectedCoords.lng]}
+                  zoom={12}
+                  draggableMarker={true}
+                  onLocationSelect={handleLocationSelect}
+                  embedded
+                  height="100%"
                 />
               </div>
+              <p className="text-xs text-gray-500">Pin location for <strong className="text-gray-300">{cityConfig.name}</strong></p>
 
               <div className="flex justify-between pt-4">
                 <button onClick={() => setStep(2)} className="px-5 py-2.5 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.06] transition text-sm">
